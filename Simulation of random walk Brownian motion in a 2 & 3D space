@@ -1,0 +1,435 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.stats
+import random
+import math
+import statistics
+
+# Functions to generate different modes of 2D random walks
+def random_walk_2d_mod1(steps=1000):
+    step_length = 1.0/math.sqrt(2)
+    step_choices = [-step_length, step_length]
+    x_steps = np.random.choice(step_choices, size=steps)
+    y_steps = np.random.choice(step_choices, size=steps)
+    
+    # Cumulative sum to get the walk positions
+    x = np.cumsum(x_steps)
+    y = np.cumsum(y_steps)
+    
+    return x, y
+    
+
+def random_walk_2d_mod2(steps=10000):
+    random.seed()
+    maxphi = 2*math.pi
+    r = 0.1
+    x_steps = []
+    y_steps = []
+    for i in range(steps):
+        phi = np.random.uniform(0,maxphi) #phi from 0 to 2*pi
+        x_steps.append(r*math.cos(phi))
+        y_steps.append(r*math.sin(phi))
+    
+    # Cumulative sum to get the walk positions
+    x = np.cumsum(x_steps)
+    y = np.cumsum(y_steps)
+    
+    return x, y
+
+def random_walk_2d_mod3(steps=10000):
+    random.seed()
+    maxsize = 0.1
+    x_steps = []
+    y_steps = []
+    for i in range(steps):
+        x_steps.append(np.random.uniform(-maxsize*0.5,maxsize*0.5))
+        y_steps.append(np.random.uniform(-maxsize*0.5,maxsize*0.5))
+    
+    # Cumulative sum to get the walk positions
+    x = np.cumsum(x_steps)
+    y = np.cumsum(y_steps)
+    
+    return x, y
+    
+# Function to calculate box-counting dimension
+def box_counting_dimension(x, y, box_size):
+    min_x, max_x = min(x), max(x)
+    min_y, max_y = min(y), max(y)
+    
+    # Create a grid of boxes
+    grid_x = np.arange(min_x, max_x + box_size, box_size)
+    grid_y = np.arange(min_y, max_y + box_size, box_size)
+    
+    # Count the number of occupied boxes
+    occupied_boxes = set()
+    
+    for i in range(len(x)):
+        ix = np.digitize(x[i], grid_x)
+        iy = np.digitize(y[i], grid_y)
+        
+        occupied_boxes.add((ix, iy))
+    
+    return len(occupied_boxes)
+    
+# Generate a 2D random walk
+x, y = random_walk_2d_mod1(steps=1000000)
+
+# Plot the 3D random walk
+fig = plt.figure()
+ax = fig.add_subplot()
+ax.plot(x, y, color='blue')
+ax.set_title("2D Random Walk")
+plt.show()  
+
+# Calculate the box dimension for different box sizes
+box_sizes = np.logspace(1e-3, 1, num=10)
+box_counts = [box_counting_dimension(x, y, z, box_size) for box_size in box_sizes]
+
+# Fit the relationship between log(box size) and log(box count) to a line
+log_box_sizes = np.log(box_sizes)
+log_box_counts = np.log(box_counts)
+slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(log_box_sizes, log_box_counts)
+
+# Box dimension is the negative of the slope
+box_dimension = -slope
+
+# Plot the log-log plot and linear fit
+plt.figure()
+plt.plot(log_box_sizes, log_box_counts, 'o', label='Data')
+plt.plot(log_box_sizes, intercept + slope * log_box_sizes, 'r', label=f'Fit: slope = {-slope:.2f}')
+plt.xlabel('log(Box Size)')
+plt.ylabel('log(Number of Boxes)')
+plt.title('Box-Counting Dimension')
+plt.legend()
+plt.show()
+
+print(f"Estimated Box-Counting Dimension: {box_dimension:.2f}")
+
+
+
+# Creating ensambles of random walks for the dimensional convergence test
+stepset = [int(10.0**3),int(10.0**3.5), int(10.0**4), int(10.0**4.5), int(10.0**5), int(10.0**5.5), int(10.0**6), int(10.0**6.5), int(10.0**7), int(10.0**7.5)]
+logstepset = [3,3.5,3,4.5,5,5.5,6,6.5,7,7.5]
+
+# Mod 1
+dimsetfin = [];
+Ntr = 20; # Size of ensamble
+box_sizes = np.logspace(-0.3, 0.3, num=10)  # Box sizes
+log_box_sizes = np.log(box_sizes)
+
+for j in range(Ntr):
+    xsets = []
+    ysets = []
+    dimset1 = []
+    for steps in stepset:
+        xsets.append(random_walk_2d_mod1(int(steps))[0])
+        ysets.append(random_walk_2d_mod1(int(steps))[1])
+    box_countset = [[box_counting_dimension(xsets[i], ysets[i], zsets[i], box_size) for box_size in box_sizes] for i in range(len(stepset))]
+    log_box_countset = [np.log(b) for b in box_countset]
+    for i in range(len(stepset)):
+        log_box_counts = np.log(box_countset[i])
+        slope = scipy.stats.linregress(log_box_sizes, log_box_counts)[0]
+        dimset1.append(-slope)
+    temp = [i.item() for i in dimset1]
+    dimsetfin.append(temp)
+    
+avg1 = [statistics.mean([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+std1 = [statistics.stdev([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+
+# Mod 2
+
+dimsetfin = []
+Ntr = 20;
+box_sizes = np.logspace(-0.3, 0.3, num=10)
+log_box_sizes = np.log(box_sizes)
+
+for j in range(Ntr):
+    xsets = []
+    ysets = []
+    dimset1 = []
+    for steps in stepset:
+        xsets.append(random_walk_2d_mod2(int(steps))[0])
+        ysets.append(random_walk_2d_mod2(int(steps))[1])
+    box_countset = [[box_counting_dimension(xsets[i], ysets[i], zsets[i], box_size) for box_size in box_sizes] for i in range(len(stepset))]
+    log_box_countset = [np.log(b) for b in box_countset]
+    for i in range(len(stepset)):
+        log_box_counts = np.log(box_countset[i])
+        slope = scipy.stats.linregress(log_box_sizes, log_box_counts)[0]
+        dimset1.append(-slope)
+    temp = [i.item() for i in dimset1]
+    dimsetfin.append(temp)
+
+avg2 = [statistics.mean([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+std2 = [statistics.stdev([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+
+# Mod 3
+dimsetfin = []
+Ntr = 20;
+box_sizes = np.logspace(-0.3, 0.3, num=10)  # Box sizes
+log_box_sizes = np.log(box_sizes)
+
+for j in range(Ntr):
+    xsets = []
+    ysets = []
+    dimset1 = []
+    for steps in stepset:
+        xsets.append(random_walk_2d_mod3(int(steps))[0])
+        ysets.append(random_walk_2d_mod3(int(steps))[1])
+    box_countset = [[box_counting_dimension(xsets[i], ysets[i], zsets[i], box_size) for box_size in box_sizes] for i in range(len(stepset))]
+    log_box_countset = [np.log(b) for b in box_countset]
+    for i in range(len(stepset)):
+        log_box_counts = np.log(box_countset[i])
+        slope = scipy.stats.linregress(log_box_sizes, log_box_counts)[0]
+        dimset1.append(-slope)
+    temp = [i.item() for i in dimset1]
+    dimsetfin.append(temp)
+    
+avg3 = [statistics.mean([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+std3 = [statistics.stdev([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+
+
+# Plotting
+plt.figure()
+plt.errorbar(logstepset, avg1, yerr = std1, capsize = 4, fmt = 'ro')
+plt.errorbar(logstepset, avg2, yerr = std2, capsize = 4, fmt = 'go')
+plt.errorbar(logstepset, avg3, yerr = std3, capsize = 4, fmt = 'bo')
+
+plt.plot(logstepset, avg1, 'r', label='Mode 1')
+plt.plot(logstepset, avg2, 'g', label='Mode 2')
+plt.plot(logstepset, avg3, 'b', label='Mode 3')
+
+plt.plot(logstepset, [2]*len(logstepset), 'k--', label='D=2')
+
+plt.xlabel('log(number of steps)')
+plt.ylabel('Box-Counting Dimension of 2D random walk')
+plt.title('Convergence of the Box-Counting Dimension')
+plt.legend()
+plt.show()
+3D Random Walk
+import numpy as np
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import scipy.stats
+import random
+import math
+import statistics
+
+# Functions to generate different modes of 3D random walks
+def random_walk_3d_mod1(steps=1000):
+    step_length = 1.0/math.sqrt(3)
+    step_choices = [-step_length, step_length]
+    x_steps = np.random.choice(step_choices, size=steps)
+    y_steps = np.random.choice(step_choices, size=steps)
+    z_steps = np.random.choice(step_choices, size=steps)
+    
+    # Cumulative sum to get the walk positions
+    x = np.cumsum(x_steps)
+    y = np.cumsum(y_steps)
+    z = np.cumsum(z_steps)
+    
+    return x, y, z
+    
+
+def random_walk_3d_mod2(steps=10000):
+    random.seed()
+    maxphi = 2*math.pi
+    maxth = math.pi
+    r = 0.1
+    x_steps = []
+    y_steps = []
+    z_steps = []
+    for i in range(steps):
+        phi = np.random.uniform(0,maxphi) #phi from 0 to 2*pi
+        th = np.random.uniform(0,maxth) #theta from 0 to pi
+        x_steps.append(r*math.sin(th)*math.cos(phi))
+        y_steps.append(r*math.sin(th)*math.sin(phi))
+        z_steps.append(r*math.cos(th))
+    
+    # Cumulative sum to get the walk positions
+    x = np.cumsum(x_steps)
+    y = np.cumsum(y_steps)
+    z = np.cumsum(z_steps)
+    
+    return x, y, z
+
+def random_walk_3d_mod3(steps=10000):
+    random.seed()
+    maxsize = 0.1
+    x_steps = []
+    y_steps = []
+    z_steps = []
+    for i in range(steps):
+        x_steps.append(np.random.uniform(-maxsize*0.5,maxsize*0.5))
+        y_steps.append(np.random.uniform(-maxsize*0.5,maxsize*0.5))
+        z_steps.append(np.random.uniform(-maxsize*0.5,maxsize*0.5))
+    
+    # Cumulative sum to get the walk positions
+    x = np.cumsum(x_steps)
+    y = np.cumsum(y_steps)
+    z = np.cumsum(z_steps)
+    
+    return x, y, z
+    
+# Function to calculate box-counting dimension
+def box_counting_dimension(x, y, z, box_size):
+    min_x, max_x = min(x), max(x)
+    min_y, max_y = min(y), max(y)
+    min_z, max_z = min(z), max(z)
+    
+    # Create a grid of boxes
+    grid_x = np.arange(min_x, max_x + box_size, box_size)
+    grid_y = np.arange(min_y, max_y + box_size, box_size)
+    grid_z = np.arange(min_z, max_z + box_size, box_size)
+    
+    # Count the number of occupied boxes
+    occupied_boxes = set()
+    
+    for i in range(len(x)):
+        ix = np.digitize(x[i], grid_x)
+        iy = np.digitize(y[i], grid_y)
+        iz = np.digitize(z[i], grid_z)
+        
+        occupied_boxes.add((ix, iy, iz))
+    
+    return len(occupied_boxes)
+    
+# Example of 3D random walk and box-counting dimension
+x, y, z = random_walk_3d_mod1(steps=1000000)
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+ax.plot(x, y, z, color='blue')
+ax.set_title("3D Random Walk")
+plt.show()    
+
+# Calculate the box dimension for different box sizes
+box_sizes = np.logspace(1e-3, 1, num=10)
+box_counts = [box_counting_dimension(x, y, z, box_size) for box_size in box_sizes]
+
+# Fit the relationship between log(box size) and log(box count) to a line
+log_box_sizes = np.log(box_sizes)
+log_box_counts = np.log(box_counts)
+slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(log_box_sizes, log_box_counts)
+
+# Box dimension is the negative of the slope
+box_dimension = -slope
+
+# Plot the log-log plot and linear fit
+plt.figure()
+plt.plot(log_box_sizes, log_box_counts, 'o', label='Data')
+plt.plot(log_box_sizes, intercept + slope * log_box_sizes, 'r', label=f'Fit: slope = {-slope:.2f}')
+plt.xlabel('log(Box Size)')
+plt.ylabel('log(Number of Boxes)')
+plt.title('Box-Counting Dimension')
+plt.legend()
+plt.show()
+
+print(f"Estimated Box-Counting Dimension: {box_dimension:.2f}")
+
+
+
+# Creating ensambles of random walks for the dimensional convergence test
+stepset = [int(10.0**3),int(10.0**3.5), int(10.0**4), int(10.0**4.5), int(10.0**5), int(10.0**5.5), int(10.0**6), int(10.0**6.5), int(10.0**7), int(10.0**7.5)]
+logstepset = [3,3.5,3,4.5,5,5.5,6,6.5,7,7.5]
+
+# Mod 1
+dimsetfin = [];
+Ntr = 20; # Size of ensamble
+box_sizes = np.logspace(-0.3, 0.3, num=10)  # Box sizes
+log_box_sizes = np.log(box_sizes)
+
+for j in range(Ntr):
+    xsets = []
+    ysets = []
+    zsets = []
+    dimset1 = []
+    for steps in stepset:
+        xsets.append(random_walk_3d_mod1(int(steps))[0])
+        ysets.append(random_walk_3d_mod1(int(steps))[1])
+        zsets.append(random_walk_3d_mod1(int(steps))[2])
+    box_countset = [[box_counting_dimension(xsets[i], ysets[i], zsets[i], box_size) for box_size in box_sizes] for i in range(len(stepset))]
+    log_box_countset = [np.log(b) for b in box_countset]
+    for i in range(len(stepset)):
+        log_box_counts = np.log(box_countset[i])
+        slope = scipy.stats.linregress(log_box_sizes, log_box_counts)[0]
+        dimset1.append(-slope)
+    temp = [i.item() for i in dimset1]
+    dimsetfin.append(temp)
+    
+avg1 = [statistics.mean([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+std1 = [statistics.stdev([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+
+# Mod 2
+
+dimsetfin = []
+Ntr = 20;
+box_sizes = np.logspace(-0.3, 0.3, num=10)
+log_box_sizes = np.log(box_sizes)
+
+for j in range(Ntr):
+    xsets = []
+    ysets = []
+    zsets = []
+    dimset1 = []
+    for steps in stepset:
+        xsets.append(random_walk_3d_mod2(int(steps))[0])
+        ysets.append(random_walk_3d_mod2(int(steps))[1])
+        zsets.append(random_walk_3d_mod2(int(steps))[2])
+    box_countset = [[box_counting_dimension(xsets[i], ysets[i], zsets[i], box_size) for box_size in box_sizes] for i in range(len(stepset))]
+    log_box_countset = [np.log(b) for b in box_countset]
+    for i in range(len(stepset)):
+        log_box_counts = np.log(box_countset[i])
+        slope = scipy.stats.linregress(log_box_sizes, log_box_counts)[0]
+        dimset1.append(-slope)
+    temp = [i.item() for i in dimset1]
+    dimsetfin.append(temp)
+
+avg2 = [statistics.mean([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+std2 = [statistics.stdev([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+
+# Mod 3
+dimsetfin = []
+Ntr = 20;
+box_sizes = np.logspace(-0.3, 0.3, num=10)  # Box sizes
+log_box_sizes = np.log(box_sizes)
+
+for j in range(Ntr):
+    xsets = []
+    ysets = []
+    zsets = []
+    dimset1 = []
+    for steps in stepset:
+        xsets.append(random_walk_3d_mod3(int(steps))[0])
+        ysets.append(random_walk_3d_mod3(int(steps))[1])
+        zsets.append(random_walk_3d_mod3(int(steps))[2])
+    box_countset = [[box_counting_dimension(xsets[i], ysets[i], zsets[i], box_size) for box_size in box_sizes] for i in range(len(stepset))]
+    log_box_countset = [np.log(b) for b in box_countset]
+    for i in range(len(stepset)):
+        log_box_counts = np.log(box_countset[i])
+        slope = scipy.stats.linregress(log_box_sizes, log_box_counts)[0]
+        dimset1.append(-slope)
+    temp = [i.item() for i in dimset1]
+    dimsetfin.append(temp)
+    
+avg3 = [statistics.mean([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+std3 = [statistics.stdev([dimsetfin[j][i] for j in range(Ntr)]) for i in range(len(stepset))];
+
+
+# Plotting
+plt.figure()
+plt.errorbar(logstepset, avg1, yerr = std1, capsize = 4, fmt = 'ro')
+plt.errorbar(logstepset, avg2, yerr = std2, capsize = 4, fmt = 'go')
+plt.errorbar(logstepset, avg3, yerr = std3, capsize = 4, fmt = 'bo')
+
+plt.plot(logstepset, avg1, 'r', label='Mode 1')
+plt.plot(logstepset, avg2, 'g', label='Mode 2')
+plt.plot(logstepset, avg3, 'b', label='Mode 3')
+
+plt.plot(logstepset, [2]*len(logstepset), 'k--', label='D=2')
+
+plt.xlabel('log(number of steps)')
+plt.ylabel('Box-Counting Dimension of 3D random walk')
+plt.title('Convergence of the Box-Counting Dimension')
+plt.legend()
+plt.show()
+
